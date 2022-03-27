@@ -1,6 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import redirect, reverse
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
+
 
 class Test(APIView):
 	products = [
@@ -36,5 +39,23 @@ class Test(APIView):
 				i['name'] = request.data['name']
 
 		return redirect(reverse("list_products"))
-		
 
+
+class Login(APIView):
+	def post(self, request, format=None):
+		# Buscamos el usuario y contraseña que nos pasan por HTTP POST
+		username = request.data.get('username', None)
+		password = request.data.get('password', None)
+
+		if username is None or password is None:
+			return Response({
+				'msg': 'Los datos no pueden estar vacíos.' # Mirar de devolver un mensaje más informativo.
+			}, status=400)
+
+		# Hacemos la autenticación, verificamos que en la tabla User existe este usuario.
+		user = authenticate(username=username, password=password)
+		if user is not None: # Y si existe, hacemos el login. Creamos una sesión para éste.
+			login(request, user)
+			return Response({'msg': 'Autenticado con éxito.'}, status=200)
+		else:
+			return Response({'msg': 'Credenciales inválidas.'}, status=400)
