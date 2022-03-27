@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from django.shortcuts import redirect, reverse
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
+from django.core.validators import validate_email
+from django.contrib.auth.password_validation import validate_password
+from django.db import connections # Es algo temporal. 
 
 
 class Test(APIView):
@@ -59,3 +62,66 @@ class Login(APIView):
 			return Response({'msg': 'Autenticado con éxito.'}, status=200)
 		else:
 			return Response({'msg': 'Credenciales inválidas.'}, status=400)
+
+
+class Registro(APIView):
+	def post(self, request, format=None):
+		data = {
+			'username': request.data.get('username'),
+			'password': request.data.get('password'),
+			'first_name': request.data.get('first_name'),
+			'last_name': request.data.get('last_name'),
+			'email': request.data.get('email'),
+			'is_superuser': False,
+			'is_staff': True,
+			'is_active': True
+		}
+
+		# Guardamos los datos del vehículo.
+		car_data = {
+
+		}
+
+		# Guardamos los error en el siguiente array.
+		errors = []
+
+		if not data['first_name']:
+			errors.append({'first_name': 'El nombre es obligatorio.'})
+		if not data['last_name']:
+			errors.append({'last_name': 'El apellido es obligatorio.'})
+		if not data['username']:
+			errors.append({'username': 'El nombre de usuario no puede estar vacío.'})
+		if not data['password']:
+			errors.append({'password': 'La contraseña no puede estar vacía.'})
+		if not data['email']:
+			errors.append({'email': 'El email es obligatorio.'})
+
+		# Verificamos si el email tiene el formato correcto. Usamos el try porque sino salta un excepción.
+		try:
+			validate_password(data['email'])
+		except:
+			errors.append({'email': 'El formato del correo no es correcto.'})
+
+		try:
+			validate_password(data['password'])
+		except:
+			errors.append({'password': 'La contraseña no cumple con los requisitos. Recuerda que debe tener al menos 8 carácteres.'})
+
+		# Miramos si hay errores de comprovación de campos.
+		if len(errors):
+			return Response({'msg': errors}, status=400)
+		else:
+			# Vemos la previa existencia del usuario.
+			user_exists = User.objects.filter(username=data['username'])
+			if user_exists:
+				return Response({'msg': 'El usuario ya existe.'}, status=400)
+
+		# Creamos el usuario con los datos proporcionados.
+		new_user = User.objects.create_user(**data)
+		new_user.save()
+		#new_user_id = new_user.id
+
+		# Guardamos el "vehículo" del usuario.
+		# TODO
+
+		return Response({'msg': 'Usuario creado con éxito.'}, status=200)
